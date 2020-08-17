@@ -1,11 +1,14 @@
-ARG GIT_TAG="master"
-ARG PROCS_VERSION="edge"
+ARG SOURCE
+ARG REVISION
+ARG CREATED
+ARG VERSION
+ARG GIT_REF="${VERSION}"
 
 FROM westonsteimel/rust-static-builder:nightly as builder
 
-ARG GIT_TAG
+ARG GIT_REF
 
-RUN git clone --depth 1 --branch "${GIT_TAG}" https://github.com/dalance/procs /build/procs \
+RUN git clone --depth 1 --branch "${GIT_REF}" https://github.com/dalance/procs /build/procs \
     && cd /build/procs \
     && /home/builder/build.sh
 
@@ -16,7 +19,10 @@ RUN addgroup procs \
 
 FROM scratch
 
-ARG PROCS_VERSION
+ARG VERSION
+ARG SOURCE
+ARG REVISION
+ARG CREATED
 
 COPY --from=config /etc/passwd /etc/passwd
 COPY --from=builder /build/procs/target/x86_64-unknown-linux-musl/release/procs /usr/local/bin/procs
@@ -30,6 +36,8 @@ CMD ["--help"]
 
 LABEL org.opencontainers.image.title="procs" \
     org.opencontainers.image.description="procs in Docker" \
-    org.opencontainers.image.version="${PROCS_VERSION}" \
-    version="${PROCS_VERSION}"
+    org.opencontainers.image.source="${SOURCE}" \
+    org.opencontainers.image.revision="${REVISION}" \
+    org.opencontainers.image.created="${CREATED}" \
+    org.opencontainers.image.version="${VERSION}"
 
