@@ -1,18 +1,17 @@
-ARG SOURCE
-ARG REVISION
-ARG CREATED
+ARG VERSION="master"
+ARG REVISION="a36747a0a16727517e959e7003d0c893116b7e3d"
+
+FROM ghcr.io/westonsteimel/rust-static-builder:stable as builder
+
 ARG VERSION
-ARG GIT_REF="${VERSION}"
+ARG REVISION
 
-FROM westonsteimel/rust-static-builder:nightly as builder
-
-ARG GIT_REF
-
-RUN git clone --depth 1 --branch "${GIT_REF}" https://github.com/dalance/procs /build/procs \
+RUN git clone --branch "${VERSION}" https://github.com/dalance/procs /build/procs \
     && cd /build/procs \
-    && /home/builder/build.sh
+    && git reset --hard "${REVISION}" \
+    && NOCOMPRESS=1 /home/builder/build.sh
 
-FROM alpine:edge as config
+FROM alpine:latest as config
 
 RUN addgroup procs \
     && adduser -G procs -s /bin/sh -D procs
@@ -20,24 +19,21 @@ RUN addgroup procs \
 FROM scratch
 
 ARG VERSION
-ARG SOURCE
 ARG REVISION
-ARG CREATED
+ENV PROCS_VERSION="${VERSION}" \
+    PROCS_REVISION="${REVISION}" \
+    TERM="xterm-256color"
 
 COPY --from=config /etc/passwd /etc/passwd
-COPY --from=builder /build/procs/target/x86_64-unknown-linux-musl/release/procs /usr/local/bin/procs
+COPY --from=builder /build/artifacts/procs /usr/local/bin/procs
 
 USER procs
-
-ENV TERM xterm-256color
 
 ENTRYPOINT ["/usr/local/bin/procs"]
 CMD ["--help"]
 
 LABEL org.opencontainers.image.title="procs" \
     org.opencontainers.image.description="procs in Docker" \
-    org.opencontainers.image.source="${SOURCE}" \
     org.opencontainers.image.revision="${REVISION}" \
-    org.opencontainers.image.created="${CREATED}" \
     org.opencontainers.image.version="${VERSION}"
 
