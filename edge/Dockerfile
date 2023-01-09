@@ -1,15 +1,22 @@
 ARG VERSION="master"
 ARG REVISION="a2523b053c44ea4f6c384754c62ca044a3e7be49"
 
-FROM ghcr.io/westonsteimel/rust-static-builder:stable as builder
+FROM docker.io/rust:alpine as builder
 
 ARG VERSION
 ARG REVISION
 
+RUN apk update && apk add --no-cache \
+    git \
+    ca-certificates \
+    build-base \
+    musl-utils \
+    musl-dev
+
 RUN git clone --branch "${VERSION}" https://github.com/dalance/procs /build/procs \
     && cd /build/procs \
     && git reset --hard "${REVISION}" \
-    && NOCOMPRESS=1 /home/builder/build.sh
+    && RUSTFLAGS='-C link-arg=-s' cargo build --release --bins --target-dir /build/
 
 FROM alpine:latest as config
 
@@ -25,7 +32,7 @@ ENV PROCS_VERSION="${VERSION}" \
     TERM="xterm-256color"
 
 COPY --from=config /etc/passwd /etc/passwd
-COPY --from=builder /build/artifacts/procs /usr/local/bin/procs
+COPY --from=builder /build/release/procs /usr/local/bin/procs
 
 USER procs
 
